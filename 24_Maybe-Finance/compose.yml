@@ -1,0 +1,56 @@
+# This project has been archived.
+services:
+  maybe-app:
+    image: ghcr.io/maybe-finance/maybe:latest
+    container_name: maybe-app
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/maybe_prod/app:/rails/storage
+    ports:
+      - 3002:3000
+    environment:
+      SELF_HOSTED: "true"
+      RAILS_FORCE_SSL: "false"
+      RAILS_ASSUME_SSL: "false"
+      GOOD_JOB_EXECUTION_MODE: async
+      SECRET_KEY_BASE: ${SECRET_KEY}
+      DB_HOST: maybe-db
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      maybe-db:
+        condition: service_healthy
+    networks:
+      - proxy
+      - maybe-backend
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.maybe.entrypoints=https
+      - traefik.http.routers.maybe.rule=Host(`${URL}`)
+      - traefik.http.routers.maybe.tls=true
+      - traefik.http.services.maybe.loadbalancer.server.port=3000
+
+  maybe-db:
+    image: postgres:latest
+    container_name: maybe-db
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/maybe_prod/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maybe-backend
+
+networks:
+  maybe-backend:
+  proxy:
+    external: true

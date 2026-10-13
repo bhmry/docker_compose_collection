@@ -1,0 +1,41 @@
+services:
+  fossbilling:
+    image: fossbilling/fossbilling:latest
+    container_name: fossbilling
+    restart: unless-stopped
+    ports:
+      - 8088:80
+    volumes:
+      - /volume1/docker/foss_prod/app:/var/www/html:rw
+    depends_on:
+      - mysql
+    networks:
+      - proxy
+      - internal-foss
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.foss.entrypoints=https
+      - traefik.http.routers.foss.rule=Host(`${URL}`)
+      - traefik.http.routers.foss.tls=true
+      - traefik.http.routers.foss.middlewares=SslHeader@file
+      - traefik.http.services.foss.loadbalancer.server.port=80
+
+  mysql:
+    image: mysql:latest
+    container_name: fossbilling-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_RANDOM_ROOT_PASSWORD: ${DB_RANDOM_ROOT_PASSWORD}
+    volumes:
+      - /volume1/docker/foss_prod/db:/var/lib/mysql:rw
+    networks:
+      - internal-foss
+
+networks:
+  internal-foss:
+  proxy:
+    external: true

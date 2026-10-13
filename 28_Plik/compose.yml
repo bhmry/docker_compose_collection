@@ -1,0 +1,33 @@
+services:
+  plik:
+    image: rootgg/plik:latest
+    container_name: plik
+    restart: unless-stopped
+    ports:
+      - 8686:8080
+    environment:
+      - PLIKD_PLIK_DOMAIN=https://${FRONT_URL}
+      - PLIKD_DOWNLOAD_DOMAIN=https://${DL_URL}
+    volumes:
+      - /data/plik/config/plikd.cfg:/home/plik/server/plikd.cfg:ro
+      - /data/plik/file:/home/plik/server/file
+      - /data/plik/db:/home/plik/server/db
+      - /data/plik/webapp/settings.json:/home/plik/server/webapp/dist/settings.json:ro
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.services.plik.loadbalancer.server.port=8080
+      - traefik.http.routers.plik.entrypoints=https
+      - traefik.http.routers.plik.rule=Host(`${FRONT_URL}`)
+      - traefik.http.routers.plik.tls=true
+      - traefik.http.routers.plik.service=plik
+      - traefik.http.routers.plik-dl.entrypoints=https
+      - traefik.http.routers.plik-dl.rule=Host(`${DL_URL}`)
+      - traefik.http.routers.plik-dl.tls=true
+      - traefik.http.routers.plik-dl.service=plik
+
+networks:
+  proxy:
+    external: true

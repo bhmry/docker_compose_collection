@@ -1,0 +1,65 @@
+services:
+  db:
+    image: mariadb:latest
+    container_name: Pydio-DB
+    hostname: pydio-db
+    networks:
+      - internal-db-pydio
+    mem_limit: 1g
+    cpu_shares: 768
+    security_opt:
+      - no-new-privileges:true
+    user: ${PUID}:${PGID}
+    volumes:
+      - /volume1/docker/pydio_prod/db:/var/lib/mysql:rw
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: ${DB}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+    restart: on-failure:5
+
+  cells:
+    image: pydio/cells:latest
+    container_name: Pydio
+    hostname: pydio
+    environment:
+      CELLS_BIND: 0.0.0.0:9494
+      CELLS_EXTERNAL: https://${URL}
+      CELLS_NO_TLS: 1
+    networks:
+      - proxy
+      - internal-db-pydio
+    mem_limit: 3g
+    cpu_shares: 768
+    security_opt:
+      - no-new-privileges:true
+    user: ${PUID}:${PGID}
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:9494
+    volumes:
+      - /volume1/docker/pydio_prod/cells:/var/cells:rw
+      - /volume1/docker/pydio_prod/data:/var/cells/data:rw
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.pydio.entrypoints=https
+      - traefik.http.routers.pydio.rule=Host(`${URL}`)
+      - traefik.http.routers.pydio.tls=true
+      - traefik.http.routers.pydio.service=pydio
+      - traefik.http.services.pydio.loadbalancer.server.port=9494
+    restart: on-failure:5
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  internal-db-pydio:
+  proxy:
+    external: true

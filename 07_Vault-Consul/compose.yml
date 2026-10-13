@@ -1,0 +1,47 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    mem_limit: 256m
+    cpu_shares: 768
+    restart: always
+    volumes:
+      - /data/vault_consul/container_data/vault:/vault
+      - /data/vault_consul/container_data/vault/logs:/vault/logs
+    environment:
+      VAULT_API_ADDR: "http://vault:8200"
+      VAULT_ADDR: "http://vault:8200"
+      SKIP_CHOWN: true
+      SKIP_SETCAP: true
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault.hcl
+    depends_on:
+      - consul
+    networks:
+      - proxy
+      - vault-backend
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.vault.entrypoints=https
+      - traefik.http.routers.vault.rule=Host(`${VAULT_URL}`)
+      - traefik.http.routers.vault.tls=true
+      - traefik.http.services.vault.loadbalancer.server.port=8200
+
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    mem_limit: 256m
+    cpu_shares: 768
+    restart: always
+    volumes:
+      - /data/vault_consul/container_data/consul/data:/consul/data
+    command: "agent -server -bootstrap -ui -client=0.0.0.0"
+    networks:
+      - vault-backend
+
+networks:
+  vault-backend:
+  proxy:
+    external: true

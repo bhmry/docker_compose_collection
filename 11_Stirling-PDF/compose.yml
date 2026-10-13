@@ -1,0 +1,30 @@
+services:
+  stirling-pdf:
+    image: stirlingtools/stirling-pdf:latest
+    container_name: pdf
+    restart: unless-stopped
+    ports:
+      - 8300:8080
+    volumes:
+      - /volume1/docker/pdf_prod/trainingData:/usr/share/tessdata
+      - /volume1/docker/pdf_prod/extraConfigs:/configs
+      - /volume1/docker/pdf_prod/customFiles:/customFiles/
+      - /volume1/docker/pdf_prod/logs:/logs/
+    environment:
+      - DOCKER_ENABLE_SECURITY=true
+      - SECURITY_ENABLELOGIN=true
+      - INSTALL_BOOK_AND_ADVANCED_HTML_OPS=false
+      - LANGS=fr_FR
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.pdf-stirling.entrypoints=https
+      - traefik.http.routers.pdf-stirling.rule=Host(`${URL}`)
+      - traefik.http.routers.pdf-stirling.tls=true
+      - traefik.http.services.pdf-stirling.loadbalancer.server.port=8080
+
+networks:
+  proxy:
+    external: true

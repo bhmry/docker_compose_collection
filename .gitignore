@@ -1,0 +1,16 @@
+# Real environment files (keep only .env.example)
+.env
+*.env
+!.env.example
+
+# Certificates and keys
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

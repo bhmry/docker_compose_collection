@@ -1,0 +1,71 @@
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+  format: common
+
+api:
+  insecure: false
+  debug: false
+  dashboard: true
+
+entryPoints:
+  http:
+    address: ":8080"
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "192.168.1.0/24"
+  https:
+    address: ":8443"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "192.168.1.0/24"
+  metrics:
+    address: ":8181"
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "192.168.1.0/24"
+
+  dashboard:
+    address: ":6443"
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  fields:
+    defaultMode: keep
+    names:
+      StartUTC: drop
+    headers:
+      defaultMode: keep
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    watch: true
+    network: proxy
+    exposedByDefault: false
+  file:
+    directory: /etc/traefik/dynamic/
+    watch: true
+  providersThrottleDuration: 10s

@@ -1,0 +1,61 @@
+services:
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    container_name: semaphore_ui
+    mem_limit: 256m
+    cpu_shares: 768
+    environment:
+      - TZ=${TZ:-Europe/Paris}
+      - SEMAPHORE_DB_USER=${DB_USERNAME}
+      - SEMAPHORE_DB_PASS=${DB_PASSWORD}
+      - SEMAPHORE_DB_HOST=postgres
+      - SEMAPHORE_DB_PORT=5432
+      - SEMAPHORE_DB_DIALECT=postgres
+      - SEMAPHORE_DB=${DB}
+      - SEMAPHORE_PLAYBOOK_PATH=/tmp/semaphore/
+      - SEMAPHORE_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SEMAPHORE_ADMIN_NAME=${ADMIN_NAME}
+      - SEMAPHORE_ADMIN_EMAIL=${ADMIN_MAIL}
+      - SEMAPHORE_ADMIN=${ADMIN_USER}
+      - SEMAPHORE_ACCESS_KEY_ENCRYPTION=${KEY}
+      - SEMAPHORE_LDAP_ACTIVATED=no
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.semaphore.tls=true
+      - traefik.http.routers.semaphore.rule=Host(`${URL}`)
+      - traefik.http.routers.semaphore.entrypoints=https
+      - traefik.http.services.semaphore.loadbalancer.server.port=3000
+      - traefik.docker.network=proxy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:14
+    hostname: postgres
+    mem_limit: 256m
+    cpu_shares: 768
+    container_name: semaphore_postgres
+    volumes:
+     - /data/semaphore/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  backend:
+  proxy:
+    external: true

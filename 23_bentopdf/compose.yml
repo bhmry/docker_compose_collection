@@ -1,0 +1,21 @@
+services:
+  bentopdf:
+    image: ghcr.io/alam00000/bentopdf-simple:latest   # build Self-Hosted (recommandé)
+    # image: bentopdfteam/bentopdf-simple:latest       # alternative Docker Hub
+    # image: ghcr.io/alam00000/bentopdf:latest         # build Commercial (avec marketing)
+    container_name: bentopdf
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.bentopdf.rule=Host(`${URL}`)"
+      - "traefik.http.routers.bentopdf.entrypoints=https"
+      - "traefik.http.routers.bentopdf.tls=true"
+      - "traefik.http.routers.bentopdf.service=bentopdf"
+      - "traefik.http.services.bentopdf.loadbalancer.server.port=8080"
+
+networks:
+  proxy:
+    external: true

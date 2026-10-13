@@ -1,0 +1,108 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: unless-stopped
+    hostname: ${URL}
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://${URL}'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = {
+          "X-Forwarded-Proto" => "https",
+          "X-Forwarded-Ssl" => "on"
+        }
+
+        gitlab_rails['db_adapter'] = "postgresql"
+        gitlab_rails['db_database'] = "gitlab"
+        gitlab_rails['db_username'] = "${DB_USER}"
+        gitlab_rails['db_password'] = "${DB_PASSWORD}"
+        gitlab_rails['db_host'] = "gitlab_database"
+
+        registry['enable'] = false
+        gitlab_rails['registry_enabled'] = true
+        gitlab_rails['registry_host'] = "registry.${URL}"
+        gitlab_rails['registry_api_url'] = "http://gitlab_registry:5000"
+        gitlab_rails['registry_issuer'] = "gitlab"
+
+        gitlab_rails['smtp_enable'] = true
+        gitlab_rails['smtp_address'] = "${SMTP}"
+        gitlab_rails['smtp_port'] = 465
+        gitlab_rails['smtp_user_name'] = "${MAIL}"
+        gitlab_rails['smtp_password'] = "${PASSWORD_MAIL}"
+        gitlab_rails['smtp_domain'] = "${DOMAIN_MAIL}"
+        gitlab_rails['smtp_authentication'] = "login"
+        gitlab_rails['smtp_enable_starttls_auto'] = false
+        gitlab_rails['smtp_tls'] = true
+        gitlab_rails['gitlab_email_from'] = '${MAIL}'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+    ports:
+      - 2222:22
+    networks:
+      - proxy
+      - internal-gitlab
+    volumes:
+      - /volume1/docker/gitlab_prod/config:/etc/gitlab
+      - /volume1/docker/gitlab_prod/logs:/var/log/gitlab
+      - /volume1/docker/gitlab_prod/data:/var/opt/gitlab
+      - /volume1/docker/gitlab_prod/certs:/certs
+    depends_on:
+      database:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.gitlab.entrypoints=https
+      - traefik.http.routers.gitlab.rule=Host(`${URL}`)
+      - traefik.http.routers.gitlab.tls=true
+      - traefik.http.routers.gitlab.service=gitlab
+      - traefik.http.services.gitlab.loadbalancer.server.port=80
+
+  registry:
+    image: registry:latest
+    container_name: gitlab_registry
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/gitlab-registry_prod/data:/registry
+      - /volume1/docker/gitlab-registry_prod/certs:/certs
+    networks:
+      - proxy
+    environment:
+      REGISTRY_LOG_LEVEL: info
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /registry
+      REGISTRY_AUTH_TOKEN_REALM: https://${URL}/jwt/auth
+      REGISTRY_AUTH_TOKEN_SERVICE: container_registry
+      REGISTRY_AUTH_TOKEN_ISSUER: gitlab
+      REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE: /certs/certificate.crt
+      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.registry.entrypoints=https
+      - traefik.http.routers.registry.rule=Host(`registry.${URL}`)
+      - traefik.http.routers.registry.tls=true
+      - traefik.http.routers.registry.service=registry
+      - traefik.http.services.registry.loadbalancer.server.port=5000
+
+  database:
+    image: postgres:alpine
+    container_name: gitlab_database
+    restart: unless-stopped
+    networks:
+      - internal-gitlab
+    environment:
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD}
+      GITLAB_DB_USER: ${DB_USER}
+      GITLAB_DB_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "gitlab", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - /volume1/docker/gitlab-db_prod/data:/var/lib/postgresql/data
+networks:
+  internal-gitlab:
+  proxy:
+    external: true

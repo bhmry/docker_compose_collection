@@ -1,0 +1,27 @@
+services:
+  privatebin:
+    image: privatebin/nginx-fpm-alpine:stable
+    container_name: privatebin
+    restart: "always"
+    ports:
+      - 8787:8080
+    read_only: true
+    tmpfs:
+      - /tmp:nodev,noexec,mode=1777
+      - /run:nodev,exec,mode=1777
+    volumes:
+      - /data/privatebin/privatebin-data:/srv/data
+      # - ./conf.php:/srv/cfg/conf.php:ro   # config custom (optional)
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.privatebin.rule=Host(`${URL}`)"
+      - "traefik.http.routers.privatebin.entrypoints=https"
+      - "traefik.http.routers.privatebin.tls=true"
+      - "traefik.http.services.privatebin.loadbalancer.server.port=8080"
+
+networks:
+  proxy:
+    external: true

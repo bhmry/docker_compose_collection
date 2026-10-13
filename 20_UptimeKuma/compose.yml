@@ -1,0 +1,20 @@
+services:
+  uptime:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/uptime_prod:/app/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.uptime.entrypoints=https
+      - traefik.http.routers.uptime.rule=Host(`${URL}`)
+      - traefik.http.routers.uptime.tls=true
+      - traefik.http.services.uptime.loadbalancer.server.port=3001
+
+networks:
+  proxy:
+    external: true

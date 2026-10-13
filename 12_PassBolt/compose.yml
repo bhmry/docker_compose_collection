@@ -1,0 +1,80 @@
+services:
+  db:
+    image: mariadb:latest
+    container_name: Passbolt-DB
+    hostname: passbolt-db
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpu_shares: 768
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /data/passbolt/db:/var/lib/mysql:rw
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOTPASSWORD}
+      MYSQL_DATABASE: ${DB}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+    restart: on-failure:5
+    networks:
+      - internal-passbolt
+
+  passbolt:
+    image: passbolt/passbolt:latest-ce-non-root
+    container_name: Passbolt
+    hostname: passbolt
+    mem_limit: 1g
+    cpu_shares: 512
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: curl -f http://localhost:8080/ || exit 1
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -c
+      - /usr/bin/wait-for.sh -t 0 db:3306 -- /docker-entrypoint.sh
+    networks:
+      - proxy
+      - internal-passbolt
+    environment:
+      APP_FULL_BASE_URL: https://${URL}
+      DATASOURCES_DEFAULT_HOST: db
+      DATASOURCES_DEFAULT_USERNAME: ${DB_USERNAME}
+      DATASOURCES_DEFAULT_PASSWORD: ${DB_PASSWORD}
+      DATASOURCES_DEFAULT_DATABASE: ${DB}
+      PASSBOLT_REGISTRATION_PUBLIC: false
+      EMAIL_DEFAULT_FROM: ${MAIL}
+      EMAIL_TRANSPORT_DEFAULT_HOST: ${SMTP}
+      EMAIL_TRANSPORT_DEFAULT_PORT: ${SMTP_PORT}
+      EMAIL_TRANSPORT_DEFAULT_USERNAME: ${MAIL}
+      EMAIL_TRANSPORT_DEFAULT_PASSWORD: ${MAIL_PASSWORD}
+      EMAIL_TRANSPORT_DEFAULT_TLS: true
+    volumes:
+      - /data/passbolt/gpg:/etc/passbolt/gpg:rw
+      - /data/passbolt/jwt:/etc/passbolt/jwt:rw
+      - /data/passbolt/logs:/var/log/passbolt:rw
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.passbolt-https.middlewares=SslHeader@file
+      - traefik.http.routers.passbolt-https.entrypoints=https
+      - traefik.http.routers.passbolt-https.rule=Host(`${URL}`)
+      - traefik.http.routers.passbolt-https.tls=true
+      - traefik.http.services.passbolt.loadbalancer.server.port=8080
+      - traefik.docker.network=proxy
+    ports:
+      - 9475:8080
+
+networks:
+  internal-passbolt:
+  proxy:
+    external: true

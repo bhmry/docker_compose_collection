@@ -1,0 +1,31 @@
+services:
+  vscode:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: vscode
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    volumes:
+      - /volume1/docker/code-server_prod:/config:rw
+      # If you want to map it to Home Assistant, here is de line :
+      #- /volume1/docker/ha_prod:/config/workspace/homeassistant:rw
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-Europe/Paris}
+      - PASSWORD=${PASSWORD}
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.vscode.entrypoints=https
+      - traefik.http.routers.vscode.rule=Host(`${URL}`)
+      - traefik.http.routers.vscode.tls=true
+      - traefik.http.services.vscode.loadbalancer.server.port=8443
+
+networks:
+  proxy:
+    external: true

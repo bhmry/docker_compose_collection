@@ -1,0 +1,36 @@
+services:
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    restart: unless-stopped
+    ports:
+      - 9980:9980
+    environment:
+      - aliasgroup1=https://${URL_NEXTCLOUD}
+      - username=${COLLABORA_USER}
+      - password=${COLLABORA_PASSWORD}
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:net.frame_ancestors=${URL_NEXTCLOUD}
+      - DONT_GEN_SSL_CERT=true
+    cap_add:
+      - MKNOD
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.collabora.entrypoints=https
+      - traefik.http.routers.collabora.rule=Host(`${URL}`)
+      - traefik.http.routers.collabora.tls=true
+      - traefik.http.routers.collabora.service=collabora
+      - traefik.http.routers.collabora.middlewares=collabora-headers
+      - traefik.http.middlewares.collabora-headers.headers.customRequestHeaders.X-Forwarded-Proto=https
+      - traefik.http.middlewares.collabora-headers.headers.referrerPolicy=no-referrer
+      - traefik.http.middlewares.collabora-headers.headers.stsSeconds=15552000
+      - traefik.http.middlewares.collabora-headers.headers.forceSTSHeader=true
+      - traefik.http.middlewares.collabora-headers.headers.stsPreload=true
+      - traefik.http.middlewares.collabora-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.services.collabora.loadbalancer.server.port=9980
+
+networks:
+  proxy:
+    external: true

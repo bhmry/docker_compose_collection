@@ -1,0 +1,32 @@
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    container_name: Home-Assistant
+    security_opt:
+      - no-new-privileges:true
+    # For a USB dongle (Zigbee, Z-Wave, etc.):
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    healthcheck:
+      test: wget -nv -t1 --spider 'http://localhost:8123/'
+    restart: on-failure:5
+    volumes:
+      - /volume1/docker/ha_prod:/config:rw
+    environment:
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - 8123:8123
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.homeassistant.entrypoints=https
+      - traefik.http.routers.homeassistant.rule=Host(`${URL}`)
+      - traefik.http.routers.homeassistant.tls=true
+      - traefik.http.routers.homeassistant.service=homeassistant
+      - traefik.http.services.homeassistant.loadbalancer.server.port=8123
+
+networks:
+  proxy:
+    external: true

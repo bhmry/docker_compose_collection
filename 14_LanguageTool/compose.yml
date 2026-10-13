@@ -1,0 +1,13 @@
+services:
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: LanguageTool
+    restart: unless-stopped
+    ports:
+      - 8010:8010  # Port par défaut de l'image
+    environment:
+      - langtool_languageModel=/ngrams  # OPTIONNEL : données ngrams
+      - Java_Xms=512m  # OPTIONNEL : heap Java minimale
+      - Java_Xmx=1g    # OPTIONNEL : heap Java maximale
+    volumes:
+      - /volume1/docker/languagetool_prod/ngrams:/ngrams

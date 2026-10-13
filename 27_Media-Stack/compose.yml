@@ -1,0 +1,133 @@
+name: media-stack
+
+services:
+
+  vpn:
+    container_name: vpn
+    image: qmcgaw/gluetun:latest
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-nordvpn}
+      - OPENVPN_USER=${OPENVPN_USER}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES:-France}
+      - VPN_TYPE=openvpn
+      - TZ=${TZ}
+    networks:
+      - mynetwork
+    ports:
+      - 5080:5080   # qBittorrent WebUI
+      - 9696:9696   # Prowlarr
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+
+  qbittorrent:
+    container_name: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    network_mode: service:vpn
+    depends_on:
+      vpn:
+        condition: service_started
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=5080
+    volumes:
+      - /volume1/docker/media-stack_prod/qbittorrent/config:/config
+      - /volume1/docker/media-stack_prod/qbittorrent/data:/downloads
+    restart: unless-stopped
+
+  prowlarr:
+    container_name: prowlarr
+    image: linuxserver/prowlarr:latest
+    network_mode: service:vpn
+    depends_on:
+      vpn:
+        condition: service_started
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - /volume1/docker/media-stack_prod/prowlarr/config:/config
+    restart: unless-stopped
+
+  radarr:
+    container_name: radarr
+    image: lscr.io/linuxserver/radarr:latest
+    networks:
+      mynetwork:
+        ipv4_address: 172.60.0.3
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 7878:7878
+    volumes:
+      - /volume1/docker/media-stack_prod/radarr/config:/config
+      - /volume1/docker/media-stack_prod/qbittorrent/data:/downloads
+    restart: unless-stopped
+
+  sonarr:
+    container_name: sonarr
+    image: linuxserver/sonarr:latest
+    networks:
+      mynetwork:
+        ipv4_address: 172.60.0.2
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 8989:8989
+    volumes:
+      - /volume1/docker/media-stack_prod/sonarr/config:/config
+      - /volume1/docker/media-stack_prod/qbittorrent/data:/downloads
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    networks:
+      - mynetwork
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - /volume1/docker/media-stack_prod/jellyseerr/config:/app/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+
+  recommendarr:
+    container_name: recommendarr
+    image: tannermiddleton/recommendarr:latest
+    networks:
+      - mynetwork
+      - proxy
+    environment:
+      - NODE_ENV=production
+      - DOCKER_ENV=true
+      - PORT=3000
+      - PUBLIC_URL=https://${URL_RECOMMENDARR}
+    volumes:
+      - /volume1/docker/media-stack_prod/recommendarr/config:/app/server/data
+    ports:
+      - 3003:3000
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.recommendarr.entrypoints=https
+      - traefik.http.routers.recommendarr.rule=Host(`${URL_RECOMMENDARR}`)
+      - traefik.http.routers.recommendarr.tls=true
+      - traefik.http.services.recommendarr.loadbalancer.server.port=3000
+    restart: unless-stopped
+
+networks:
+  mynetwork:
+    external: true
+  proxy:
+    external: true

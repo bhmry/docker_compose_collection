@@ -1,0 +1,43 @@
+services:
+  plex:
+    image: linuxserver/plex:latest
+    container_name: plex
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - VERSION=docker
+      - UMASK=022
+      - TZ=${TZ:-Europe/Paris}
+      - PLEX_CLAIM=${TOKEN_PLEX}
+    ports:
+      - 32400:32400/tcp
+      - 3005:3005/tcp
+      - 8324:8324/tcp
+      - 32469:32469/tcp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+    healthcheck:
+      test: curl --connect-timeout 15 --max-time 100 --silent --show-error --fail "http://localhost:32400/identity" > /dev/null
+      interval: 1m
+      timeout: 30s
+      retries: 3
+    volumes:
+      - /volume1/docker/plex_prod/config:/config
+      - /volume1/MEDIA/Films:/data/films:ro
+      - /volume1/MEDIA/Series:/data/series:ro
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.plex.entrypoints=https
+      - traefik.http.routers.plex.rule=Host(`${URL}`)
+      - traefik.http.routers.plex.tls=true
+      - traefik.http.services.plex.loadbalancer.server.port=32400
+
+networks:
+  proxy:
+    external: true

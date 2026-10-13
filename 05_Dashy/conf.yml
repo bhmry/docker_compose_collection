@@ -1,0 +1,50 @@
+appConfig:
+  theme: dashy-docs
+  customCss: >-
+    @media (min-width: 1780px) { .home
+    .item-group-container:not(.item-size-large) { grid-template-columns:
+    repeat(3, 1fr); } } .home .item-group-container.item-size-large
+    .item-group-grid, .home .item-group-container.orientation-vertical
+    .item-group-grid { display: flex !important; }
+  auth:
+    enableGuestAccess: true
+    users:
+      - user: admin
+        hash: CHANGEME_SHA256_HASH
+        type: admin
+  webSearch:
+    searchEngine: google
+    openingMethod: newtab
+  enableErrorReporting: true
+  allowConfigEdit: false
+  enableFontAwesome: true
+  faviconApi: allesedv
+  workspaceLandingUrl: https://dashy.to
+  enableMultiTasking: false
+  layout: auto
+  iconSize: medium
+  language: fr
+pageInfo:
+  title: Dashboard Home
+  description: Dashboard infra locale
+  footerText: ''
+  logo: https://icons.veryicon.com/png/o/miscellaneous/broken-linear-icon/dashboard-81.png
+sections: # An array of sections
+  - name: Application - local
+    icon: far fa-rocket
+    items:
+    - title: NAS Synology
+      description: Accès au NAS
+      icon: favicon
+      url: https://nas.example.local:5001/
+  - name: Accès rapide - externe
+    items:
+    - title: Vaultwarden Max
+      icon: favicon
+      url: https://mon-vaultwarden.local/
+  - name: Management
+    items:
+    - title: ADGUARD
+      description: Resolveur et bloqueur DNS Local
+      icon: favicon
+      url: https://mon-dns.local:3443/
